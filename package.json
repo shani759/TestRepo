@@ -1,1 +1,20 @@
-
+{
+  "name": "TestRepo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shani759/TestRepo"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GNU",
+  "bugs": {
+    "url": "https://github.com/shani759/TestRepo/issues"
+  },
+  "homepage": "https://github.com/shani759/TestRepo#readme"
+}

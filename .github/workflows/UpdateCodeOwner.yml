@@ -20,7 +20,7 @@ jobs:
       - name: Create Release CODEOWNERS File
         run: |
           mkdir -p .github
-          echo "* @spglobal-innersource/release-shepherds" > .github/CODEOWNERS
+          echo "* @mazdaqshahzad" > .github/CODEOWNERS
         
       - name: Commit and Push CODEOWNERS
         uses: stefanzweifel/git-auto-commit-action@v5

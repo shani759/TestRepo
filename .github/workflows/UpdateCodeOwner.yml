@@ -1,50 +1,45 @@
-name: Update CODEOWNERS File
+name: Update CODEOWNERS for Release Branch
 
+# This workflow triggers on the 'create' event, which fires on branch or tag creation.
 on:
   create:
-    branches:
-      - 'release/*'
-      - 'releases/*'
 
 jobs:
-  update-codeowners:
+  update-codeowners-on-release-branch:
     runs-on: ubuntu-latest
+    # We only want to run this job if a branch was created (not a tag)
+    # and if the branch name starts with 'release/'.
+    if: github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/')
+    
     steps:
-      - name: Checkout new branch
+      - name: 'Log Branch Name'
+        run: echo "New release branch detected: ${{ github.event.ref }}"
+
+      # Step 1: Check out the code of the newly created release branch.
+      - name: 'Checkout Branch'
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # 'github.event.ref' contains the name of the branch that was just created.
+          ref: ${{ github.event.ref }}
 
-      - name: Create update branch
+      # Step 2: Create the release-specific CODEOWNERS file.
+      # This step overwrites any existing CODEOWNERS file on this branch.
+      - name: 'Create Release CODEOWNERS File'
         run: |
-          BRANCH_NAME="update-codeowners-$(date +%s)"
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-          git checkout -b $BRANCH_NAME
-
-      - name: Copy release CODEOWNERS file
-        run: |
-          cp .github/CODEOWNERS.release .github/CODEOWNERS
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/CODEOWNERS
-          git commit -m "Update CODEOWNERS for release branch"
-
-      - name: Push update branch
-        run: |
-          git push origin $BRANCH_NAME
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
+          # Create the directory if it doesn't exist
+          mkdir -p .github
+          # Create the CODEOWNERS file with rules for the release branch.
+          # Restrict merge access to the release-shepherds team.
+          echo '# These rules only apply to release branches.' > .github/CODEOWNERS
+          echo '* @mazdaqshahzad' >> .github/CODEOWNERS
+        
+      # Step 3: Commit and push the new CODEOWNERS file to the release branch.
+      - name: 'Commit and Push CODEOWNERS'
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ env.BRANCH_NAME }}
-          base: ${{ github.ref_name }}
-          title: "Update CODEOWNERS for release branch ${{ github.ref_name }}"
-          body: |
-            This PR automatically updates the CODEOWNERS file for the release branch.
-            
-            Changes:
-            - Copied `.github/CODEOWNERS.release` to `.github/CODEOWNERS`
-            
-            This was triggered by the creation of branch: `${{ github.ref_name }}`
-          delete-branch: true
+          commit_message: 'CI: Apply release-specific CODEOWNERS'
+          branch: ${{ github.event.ref }}
+          file_pattern: .github/CODEOWNERS
+          commit_user_name: 'github-actions[bot]'
+          commit_user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_author: 'github-actions[bot] <github-actions[bot]@users.noreply.github.com>'

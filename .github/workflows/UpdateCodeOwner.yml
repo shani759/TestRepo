@@ -1,4 +1,4 @@
-name: Update CODEOWNERS for Release Branches
+name: Update CODEOWNERS File
 
 on:
   create:

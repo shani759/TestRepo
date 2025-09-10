@@ -1,45 +1,32 @@
 name: Update CODEOWNERS for Release Branch
 
-# This workflow triggers on the 'create' event, which fires on branch or tag creation.
 on:
-  create:
+  create
 
 jobs:
   update-codeowners-on-release-branch:
     runs-on: ubuntu-latest
-    # We only want to run this job if a branch was created (not a tag)
-    # and if the branch name starts with 'release/'.
-    if: github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/')
-    
-    steps:
-      - name: 'Log Branch Name'
-        run: echo "New release branch detected: ${{ github.event.ref }}"
+    if: ${{ github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/') }}
 
-      # Step 1: Check out the code of the newly created release branch.
-      - name: 'Checkout Branch'
+    steps:
+      - name: Log Branch Name
+        run: echo "New release branch detected."
+
+      - name: Checkout Branch
         uses: actions/checkout@v4
         with:
-          # 'github.event.ref' contains the name of the branch that was just created.
           ref: ${{ github.event.ref }}
 
-      # Step 2: Create the release-specific CODEOWNERS file.
-      # This step overwrites any existing CODEOWNERS file on this branch.
-      - name: 'Create Release CODEOWNERS File'
+      - name: Create Release CODEOWNERS File
         run: |
-          # Create the directory if it doesn't exist
           mkdir -p .github
-          # Create the CODEOWNERS file with rules for the release branch.
-          # Restrict merge access to the release-shepherds team.
-          echo '# These rules only apply to release branches.' > .github/CODEOWNERS
-          echo '* @mazdaqshahzad' >> .github/CODEOWNERS
+          echo "* @spglobal-innersource/release-shepherds" > .github/CODEOWNERS
         
-      # Step 3: Commit and push the new CODEOWNERS file to the release branch.
-      - name: 'Commit and Push CODEOWNERS'
+      - name: Commit and Push CODEOWNERS
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'CI: Apply release-specific CODEOWNERS'
           branch: ${{ github.event.ref }}
           file_pattern: .github/CODEOWNERS
-          commit_user_name: 'github-actions[bot]'
-          commit_user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_author: 'github-actions[bot] <github-actions[bot]@users.noreply.github.com>'
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com

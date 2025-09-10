@@ -9,10 +9,7 @@ jobs:
     if: ${{ github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/') }}
 
     steps:
-      - name: Log Branch Name
-        run: echo "New release branch detected."
-
-      - name: Checkout Branch
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.ref }}
@@ -21,12 +18,13 @@ jobs:
         run: |
           mkdir -p .github
           echo "* @mazdaqshahzad" > .github/CODEOWNERS
-        
-      - name: Commit and Push CODEOWNERS
+      
+      - name: Commit and Push CODEOWNERS via SSH
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: 'CI: Apply release-specific CODEOWNERS'
+          commit_message: "CI: Apply release-specific CODEOWNERS"
           branch: ${{ github.event.ref }}
-          file_pattern: .github/CODEOWNERS
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
+          # Use the deploy key secret
+          ssh_private_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}

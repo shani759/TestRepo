@@ -18,11 +18,23 @@ jobs:
         run: |
           mkdir -p .github
           echo "* @spglobal-innersource/release-shepherds" > .github/CODEOWNERS
+      
+      - name: <strong>[DEBUG] Verify CODEOWNERS file content</strong>
+        run: |
+          echo "--- Verifying .github/CODEOWNERS ---"
+          cat .github/CODEOWNERS
+          echo "------------------------------------"
+
+      - name: <strong>[DEBUG] Check git status before commit</strong>
+        run: |
+          echo "--- Checking git status ---"
+          git status
+          echo "---------------------------"
 
       - name: Push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/shani759/TestRepo.git
-          git push origin HEAD:release/25.12.07
+          git push origin HEAD:release/25.12.08
 

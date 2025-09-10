@@ -1,2 +1,2 @@
-# CODEOWNERS for main
-@mazdaqshahzad
+# CODEOWNERS for release branches
+	* @mazdaqshahzad

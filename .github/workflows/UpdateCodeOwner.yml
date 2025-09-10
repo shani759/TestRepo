@@ -18,15 +18,11 @@ jobs:
         run: |
           mkdir -p .github
           echo "* @spglobal-innersource/release-shepherds" > .github/CODEOWNERS
-      
-      - name: <strong>Force Git to use SSH</strong>
-        run: git remote set-url origin git@github.com:${{ github.repository }}.git
-        
-      - name: Commit and Push CODEOWNERS via SSH
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "CI: Apply release-specific CODEOWNERS"
-          branch: ${{ github.event.ref }}
-          commit_user_name: "github-actions[bot]"
-          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
-          ssh_private_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+
+      - name: Push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/<owner>/<repo>.git
+          git push origin HEAD:release/my-feature
+

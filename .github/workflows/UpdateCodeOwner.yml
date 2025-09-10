@@ -1,0 +1,23 @@
+name: Update CODEOWNERS for Release Branches
+
+on:
+  create:
+    branches:
+      - 'release/*'
+      - 'releases/*'
+
+jobs:
+  update-codeowners:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout new branch
+        uses: actions/checkout@v3
+
+      - name: Copy release CODEOWNERS file
+        run: |
+          cp .github/CODEOWNERS.release .github/CODEOWNERS
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add .github/CODEOWNERS
+          git commit -m "Update CODEOWNERS for release branch"
+          git push

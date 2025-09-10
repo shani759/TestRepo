@@ -35,9 +35,5 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Add the changed file to staging
-          git add .github/CODEOWNERS          
-          # Commit the file
-          git commit -m "CI: Apply release-specific CODEOWNERS"
           git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/shani759/TestRepo.git
-          git push origin HEAD:release/25.12.10
+          git push origin HEAD:release/25.12.11

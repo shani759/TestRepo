@@ -6,35 +6,37 @@ on:
 jobs:
   update-codeowners-on-release-branch:
     runs-on: ubuntu-latest
+    # This job only runs for new branches that start with 'release/'
     if: ${{ github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/') }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          # Check out the specific new branch that was just created
           ref: ${{ github.event.ref }}
 
-      - name: Create Release CODEOWNERS File
+      - name: Create or Update Release CODEOWNERS File
         run: |
           mkdir -p .github
-          echo "* @spglobal-innersource/release-shepherds" > .github/CODEOWNERS
+          # Add a timestamp to ensure the file content is always unique
+          echo "# Auto-generated for release branch on $(date)" > .github/CODEOWNERS
+          echo "* @spglobal-innersource/release-shepherds" >> .github/CODEOWNERS
       
-      - name: <strong>[DEBUG] Verify CODEOWNERS file content</strong>
+      - name: Commit and Push changes
         run: |
-          echo "--- Verifying .github/CODEOWNERS ---"
-          cat .github/CODEOWNERS
-          echo "------------------------------------"
-
-      - name: <strong>[DEBUG] Check git status before commit</strong>
-        run: |
-          echo "--- Checking git status ---"
-          git status
-          echo "---------------------------"
-
-      - name: Push changes
-        run: |
+          # Configure git user
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/shani759/TestRepo.git
-          git push origin HEAD:release/25.12.08
-
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Add the changed file to staging
+          git add .github/CODEOWNERS
+          
+          # Commit the file
+          git commit -m "CI: Apply release-specific CODEOWNERS"
+          
+          # Set the remote URL with the Personal Access Token
+          git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}
+          
+          # Push the commit to the new branch
+          git push origin HEAD:${{ github.event.ref }}

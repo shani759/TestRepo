@@ -12,7 +12,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.ref }}
+          ref: main
+
+      - name: Create temporary patch branch
+        run: |
+          TEMP_BRANCH="temp-patch-$(date +%s)"
+          echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
+          git checkout -b $TEMP_BRANCH
 
       - name: Create Release CODEOWNERS File
         run: |
@@ -31,9 +37,20 @@ jobs:
           git status
           echo "---------------------------"
 
-      - name: Push changes
+      - name: Commit and push temp branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/shani759/TestRepo.git
+          git add .github/CODEOWNERS
+          git commit -m "Update CODEOWNERS for release branch"
+          git push origin $TEMP_BRANCH
+
+      - name: Create release branch from temp
+        run: |
+          git checkout -b release/25.12.11
           git push origin HEAD:release/25.12.11
+
+      - name: Delete temporary branch
+        run: |
+          git push origin --delete $TEMP_BRANCH

@@ -6,9 +6,27 @@ on:
 jobs:
   update-codeowners-on-release-branch:
     runs-on: ubuntu-latest
-    if: ${{ github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/') }}
+    if: ${{ github.event.ref_type == 'branch' && startsWith(github.event.ref, 'Release/Create-') }}
 
     steps:
+      - name: Extract version and set branch names
+        run: |
+          TRIGGER_BRANCH="${{ github.event.ref }}"
+          VERSION=$(echo "$TRIGGER_BRANCH" | sed 's/Release\/Create-//')
+          TEMP_BRANCH="ReleaseTemp-$VERSION"
+          RELEASE_BRANCH="release/$VERSION"
+          
+          echo "TRIGGER_BRANCH=$TRIGGER_BRANCH" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
+          echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
+          
+          echo "--- Branch Names ---"
+          echo "Trigger Branch: $TRIGGER_BRANCH"
+          echo "Version: $VERSION"
+          echo "Temp Branch: $TEMP_BRANCH"
+          echo "Release Branch: $RELEASE_BRANCH"
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -16,8 +34,6 @@ jobs:
 
       - name: Create temporary patch branch
         run: |
-          TEMP_BRANCH="temp-patch-$(date +%s)"
-          echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
           git checkout -b $TEMP_BRANCH
 
       - name: Create Release CODEOWNERS File
@@ -43,14 +59,23 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/shani759/TestRepo.git
           git add .github/CODEOWNERS
-          git commit -m "Update CODEOWNERS for release branch"
+          git commit -m "Update CODEOWNERS for release branch $VERSION"
           git push origin $TEMP_BRANCH
 
       - name: Create release branch from temp
         run: |
-          git checkout -b release/27.10.00
-          git push origin HEAD:release/27.10.00
+          git checkout -b $RELEASE_BRANCH
+          git push origin HEAD:$RELEASE_BRANCH
 
       - name: Delete temporary branch
         run: |
+          echo "--- Deleting temporary branch: $TEMP_BRANCH ---"
           git push origin --delete $TEMP_BRANCH
+          echo "Temporary branch $TEMP_BRANCH deleted successfully"
+
+      - name: Delete trigger branch
+        run: |
+          echo "--- Deleting trigger branch: $TRIGGER_BRANCH ---"
+          git push origin --delete $TRIGGER_BRANCH
+          echo "Trigger branch $TRIGGER_BRANCH deleted successfully"
+        continue-on-error: true

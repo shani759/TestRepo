@@ -1,4 +1,4 @@
-name: Manual Create Release Branch with CODEOWNERS
+name: Create Release Branch with CODEOWNERS
 
 on:
   workflow_dispatch:
@@ -41,7 +41,7 @@ jobs:
       - name: Create Release CODEOWNERS File
         run: |
           mkdir -p .github
-          echo "* @spglobal-innersource/release-shepherds" > .github/CODEOWNERS
+          echo "* @mazdaqshahzad" > .github/CODEOWNERS
       
       - name: <strong>[DEBUG] Verify CODEOWNERS file content</strong>
         run: |

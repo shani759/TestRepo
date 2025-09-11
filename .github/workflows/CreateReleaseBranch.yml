@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., 25.34.00)'
+        description: 'Release version (e.g., 25.12.00)'
         required: true
         type: string
-        default: '1.0.0'
+        default: '25.12.00'
 
 jobs:
   update-codeowners-on-release-branch:

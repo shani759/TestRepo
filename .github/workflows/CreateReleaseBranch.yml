@@ -1,0 +1,76 @@
+name: Manual Create Release Branch with CODEOWNERS
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 25.34.00)'
+        required: true
+        type: string
+        default: '1.0.0'
+
+jobs:
+  update-codeowners-on-release-branch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract version and set branch names
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          TEMP_BRANCH="ReleaseTemp-$VERSION"
+          RELEASE_BRANCH="release/$VERSION"
+          
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
+          echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
+          
+          echo "--- Branch Names ---"
+          echo "Version: $VERSION"
+          echo "Temp Branch: $TEMP_BRANCH"
+          echo "Release Branch: $RELEASE_BRANCH"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create temporary patch branch
+        run: |
+          git checkout -b $TEMP_BRANCH
+
+      - name: Create Release CODEOWNERS File
+        run: |
+          mkdir -p .github
+          echo "* @spglobal-innersource/release-shepherds" > .github/CODEOWNERS
+      
+      - name: <strong>[DEBUG] Verify CODEOWNERS file content</strong>
+        run: |
+          echo "--- Verifying .github/CODEOWNERS ---"
+          cat .github/CODEOWNERS
+          echo "------------------------------------"
+
+      - name: <strong>[DEBUG] Check git status before commit</strong>
+        run: |
+          echo "--- Checking git status ---"
+          git status
+          echo "---------------------------"
+
+      - name: Commit and push temp branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/shani759/TestRepo.git
+          git add .github/CODEOWNERS
+          git commit -m "Update CODEOWNERS for release branch $VERSION"
+          git push origin $TEMP_BRANCH
+
+      - name: Create release branch from temp
+        run: |
+          git checkout -b $RELEASE_BRANCH
+          git push origin HEAD:$RELEASE_BRANCH
+
+      - name: Delete temporary branch
+        run: |
+          echo "--- Deleting temporary branch: $TEMP_BRANCH ---"
+          git push origin --delete $TEMP_BRANCH
+          echo "Temporary branch $TEMP_BRANCH deleted successfully"

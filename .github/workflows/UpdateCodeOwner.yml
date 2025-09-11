@@ -48,8 +48,8 @@ jobs:
 
       - name: Create release branch from temp
         run: |
-          git checkout -b release/27.00.00
-          git push origin HEAD:release/25.12.11
+          git checkout -b release/27.10.00
+          git push origin HEAD:release/27.10.00
 
       - name: Delete temporary branch
         run: |

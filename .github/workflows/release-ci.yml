@@ -64,22 +64,66 @@ jobs:
             echo "CI/CD allowed: commit before cutoff $CUTOFF."
           fi
 
-      - name: Send notification email if blocked
+      - name: Create blocking issue when CI/CD is blocked
         if: failure() && steps.check.outputs.notify == 'true'
-        uses: dawidd6/action-send-mail@v3
+        uses: dacbd/create-issue-action@main
         with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USERNAME }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "CI/CD Blocked for Release Branch"
+          token: ${{ github.token }}
+          title: "🚫 CI/CD Blocked: Release Branch Past Cutoff (${{ github.ref_name }})"
           body: |
-            [Automated Notice]
-            A commit was made to release branch '${{ github.ref_name }}' after cutoff date ${{ steps.cutoff.outputs.cutoff }}.
-            CI/CD has been blocked. Please review!
-          to: "z.ajmal759@gmail.com"
-          from: "z.ajmal759@gmail.com"
+            ## 🚫 CI/CD Blocked - Release Branch Past Cutoff
+            
+            **⚠️ AUTOMATIC BLOCK TRIGGERED**
+            
+            ### Details
+            - **Branch:** `${{ github.ref_name }}`
+            - **Cutoff Date:** `${{ steps.cutoff.outputs.cutoff }}`
+            - **Current Date:** `$(date +%Y-%m-%d)`
+            - **Commit SHA:** `${{ github.sha }}`
+            - **Author:** `@${{ github.actor }}`
+            - **Triggered by:** [Workflow Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ### What Happened?
+            A commit was pushed to release branch `${{ github.ref_name }}` after the established cutoff date of **${{ steps.cutoff.outputs.cutoff }}**.
+            
+            The CI/CD pipeline has been **automatically blocked** to prevent uncontrolled changes to this release.
+            
+            ### Required Actions
+            - [ ] **Review the urgency** of this commit with the release manager
+            - [ ] **Get approval** from stakeholders for post-cutoff changes
+            - [ ] **Verify impact** on release timeline and stability
+            - [ ] **Update cutoff date** in `.release_config.yml` if needed (emergency only)
+            - [ ] **Close this issue** once resolved
+            
+            ### Emergency Override
+            If this is a critical hotfix, update the cutoff date in `.release_config.yml`:
+            ```yaml
+            releases:
+              ${{ github.ref_name }}:
+                cutoff: "NEW_DATE_HERE"  # Format: YYYY-MM-DD
+            ```
+            
+            ---
+            _This issue was automatically created by the Release Cutoff Enforcement workflow._
+          assignees: |
+            shani759
+          labels: |
+            release-cutoff
+            blocked
+            urgent
+
+      - name: Add comment to triggering commit
+        if: failure() && steps.check.outputs.notify == 'true'
+        uses: peter-evans/commit-comment@v3
+        with:
+          token: ${{ github.token }}
+          sha: ${{ github.sha }}
+          body: |
+            🚫 **CI/CD BLOCKED** - This commit was made after the release cutoff date (**${{ steps.cutoff.outputs.cutoff }}**).
+            
+            A [blocking issue has been created](https://github.com/${{ github.repository }}/issues) for review.
+            
+            Please contact the release manager before proceeding.
 
       - name: Run CI/CD steps
         if: success()

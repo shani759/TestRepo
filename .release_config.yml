@@ -5,3 +5,5 @@ releases:
     cutoff: "2025-09-15"
   release/2025-10:
     cutoff: "2025-10-15"
+  release/25.12.13:
+    cutoff: "2025-09-14"

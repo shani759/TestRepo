@@ -1,9 +1,9 @@
 releases:
-  release/2025.12.13:
+  release/25.12.13:
     cutoff: "2025-09-13"
-  release/2025.12.14:
+  release/25.12.14:
     cutoff: "2025-09-14"
-  release/2025.12.15:
+  release/25.12.15:
     cutoff: "2025-09-15"
-  release/2025.12.16:
+  release/25.12.16:
     cutoff: "2025-09-15"

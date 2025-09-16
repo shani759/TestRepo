@@ -6,4 +6,6 @@ releases:
   release/25.12.15:
     cutoff: "2025-09-15"
   release/25.12.17:
-    cutoff: "2025-09-15"
+    cutoff: "2025-09-17"  # Set to tomorrow so you can test allowed scenario
+  release/25.12.18:
+    cutoff: "2025-09-15"  # Set to past date to test blocked scenario

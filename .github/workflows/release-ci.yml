@@ -50,15 +50,21 @@ jobs:
         run: |
           COMMIT_DATE=$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})
           CUTOFF="${{ steps.cutoff.outputs.cutoff }}"
+
+          COMMIT_TS=$(date -d "$COMMIT_DATE" +%s)
+          CUTOFF_TS=$(date -d "$CUTOFF" +%s)
+
           echo "Commit date: $COMMIT_DATE"
           echo "Cutoff date: $CUTOFF"
+          echo "Commit timestamp: $COMMIT_TS"
+          echo "Cutoff timestamp: $CUTOFF_TS"
 
           if [ "$CUTOFF" == "9999-99-99" ]; then
             echo "notify=false" >> $GITHUB_OUTPUT
             echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
             echo "block_workflow=false" >> $GITHUB_OUTPUT
             echo "No cutoff date configured - proceeding with CI/CD"
-          elif [[ "$COMMIT_DATE" > "$CUTOFF" ]]; then
+          elif [ "$COMMIT_TS" -gt "$CUTOFF_TS" ]; then
             echo "notify=true" >> $GITHUB_OUTPUT
             echo "proceed_with_cicd=false" >> $GITHUB_OUTPUT
             echo "block_workflow=true" >> $GITHUB_OUTPUT
@@ -69,11 +75,6 @@ jobs:
             echo "block_workflow=false" >> $GITHUB_OUTPUT
             echo "CI/CD allowed: commit made before cutoff $CUTOFF (commit date: $COMMIT_DATE)."
           fi
-
-      - name: Debug cutoff and commit date
-        run: |
-          echo "Parsed cutoff date: ${{ steps.cutoff.outputs.cutoff }}"
-          echo "Commit date: $(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})"
 
       - name: Create blocking issue when CI/CD is blocked
         if: steps.check.outputs.notify == 'true'

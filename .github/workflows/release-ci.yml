@@ -44,24 +44,31 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.ref_name }}
 
-      - name: Check cutoff and set result
+      - name: Get commit date and check cutoff
         id: check
         run: |
-          NOW=$(date +%Y-%m-%d)
+          # Get the commit date in YYYY-MM-DD format
+          COMMIT_DATE=$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})
           CUTOFF="${{ steps.cutoff.outputs.cutoff }}"
-          echo "Current date: $NOW"
+          echo "Commit date: $COMMIT_DATE"
           echo "Cutoff date: $CUTOFF"
+          
           if [ "$CUTOFF" == "9999-99-99" ]; then
             echo "notify=false" >> $GITHUB_OUTPUT
+            echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
+            echo "No cutoff date configured - proceeding with CI/CD"
             exit 0
           fi
-          if [[ "$NOW" > "$CUTOFF" ]]; then
+          
+          if [[ "$COMMIT_DATE" > "$CUTOFF" ]]; then
             echo "notify=true" >> $GITHUB_OUTPUT
-            echo "CI/CD blocked: commit after cutoff $CUTOFF."
+            echo "proceed_with_cicd=false" >> $GITHUB_OUTPUT
+            echo "CI/CD blocked: commit made after cutoff $CUTOFF (commit date: $COMMIT_DATE)."
             exit 1
           else
             echo "notify=false" >> $GITHUB_OUTPUT
-            echo "CI/CD allowed: commit before cutoff $CUTOFF."
+            echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
+            echo "CI/CD allowed: commit made before cutoff $CUTOFF (commit date: $COMMIT_DATE)."
           fi
 
       - name: Create blocking issue when CI/CD is blocked
@@ -78,13 +85,13 @@ jobs:
             ### Details
             - **Branch:** `${{ github.ref_name }}`
             - **Cutoff Date:** `${{ steps.cutoff.outputs.cutoff }}`
-            - **Current Date:** `$(date +%Y-%m-%d)`
+            - **Commit Date:** `$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})`
             - **Commit SHA:** `${{ github.sha }}`
             - **Author:** `@${{ github.actor }}`
             - **Triggered by:** [Workflow Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             
             ### What Happened?
-            A commit was pushed to release branch `${{ github.ref_name }}` after the established cutoff date of **${{ steps.cutoff.outputs.cutoff }}**.
+            A commit was made on `$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})` and pushed to release branch `${{ github.ref_name }}` after the established cutoff date of **${{ steps.cutoff.outputs.cutoff }}**.
             
             The CI/CD pipeline has been **automatically blocked** to prevent uncontrolled changes to this release.
             
@@ -121,10 +128,12 @@ jobs:
           body: |
             🚫 **CI/CD BLOCKED** - This commit was made after the release cutoff date (**${{ steps.cutoff.outputs.cutoff }}**).
             
+            **Commit Date:** `$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})`
+            
             A [blocking issue has been created](https://github.com/${{ github.repository }}/issues) for review.
             
             Please contact the release manager before proceeding.
 
       - name: Run CI/CD steps
-        if: success()
-        run: echo "Running CI/CD for release branch."
+        if: steps.check.outputs.proceed_with_cicd == 'true'
+        run: echo "Running CI/CD for release branch - commit made before cutoff date."

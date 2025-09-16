@@ -21,15 +21,19 @@ jobs:
           cat << 'EOF' > cutoff_script.py
           import os
           import yaml
-          
-          branch = os.environ.get('BRANCH_NAME')
+
+          raw_branch = os.environ.get('BRANCH_NAME', '')
+          branch_parts = raw_branch.split('/')
+          normalized_branch = '/'.join(branch_parts[-2:]) if len(branch_parts) >= 2 else raw_branch
+          branch = f'release/{normalized_branch}'
+
           try:
               with open('.release_config.yml', 'r') as f:
                   config = yaml.safe_load(f)
               cutoff = config['releases'].get(branch, {}).get('cutoff', None)
           except Exception as e:
               cutoff = None
-          
+
           if cutoff:
               print(f'cutoff={cutoff}')
           else:
@@ -43,12 +47,19 @@ jobs:
           cutoff_date=$(echo "$output" | grep 'cutoff=' | cut -d '=' -f2)
           echo "cutoff=$cutoff_date" >> $GITHUB_OUTPUT
         env:
-          BRANCH_NAME: ${{ github.ref_name }}
+          BRANCH_NAME: ${{ github.ref }}
 
-      - name: Get commit date and check cutoff
+      - name: Validate cutoff presence
+        run: |
+          if [[ "${{ steps.cutoff.outputs.cutoff }}" == "9999-99-99" ]]; then
+            echo "❌ Cutoff not found for branch ${{ github.ref }}"
+            exit 1
+          fi
+
+      - name: Get push timestamp and check cutoff
         id: check
         run: |
-          COMMIT_DATE=$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})
+          COMMIT_DATE="${{ github.event.head_commit.timestamp }}"
           CUTOFF="${{ steps.cutoff.outputs.cutoff }}"
 
           COMMIT_TS=$(date -d "$COMMIT_DATE" +%s)
@@ -59,12 +70,7 @@ jobs:
           echo "Commit timestamp: $COMMIT_TS"
           echo "Cutoff timestamp: $CUTOFF_TS"
 
-          if [ "$CUTOFF" == "9999-99-99" ]; then
-            echo "notify=false" >> $GITHUB_OUTPUT
-            echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
-            echo "block_workflow=false" >> $GITHUB_OUTPUT
-            echo "No cutoff date configured - proceeding with CI/CD"
-          elif [ "$COMMIT_TS" -gt "$CUTOFF_TS" ]; then
+          if [ "$COMMIT_TS" -gt "$CUTOFF_TS" ]; then
             echo "notify=true" >> $GITHUB_OUTPUT
             echo "proceed_with_cicd=false" >> $GITHUB_OUTPUT
             echo "block_workflow=true" >> $GITHUB_OUTPUT
@@ -90,30 +96,17 @@ jobs:
             ### Details
             - **Branch:** `${{ github.ref_name }}`
             - **Cutoff Date:** `${{ steps.cutoff.outputs.cutoff }}`
-            - **Commit Date:** `$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})`
+            - **Commit Date:** `${{ github.event.head_commit.timestamp }}`
             - **Commit SHA:** `${{ github.sha }}`
             - **Author:** `@${{ github.actor }}`
             - **Triggered by:** [Workflow Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             
-            ### What Happened?
-            A commit was made on `$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})` and pushed to release branch `${{ github.ref_name }}` after the established cutoff date of **${{ steps.cutoff.outputs.cutoff }}**.
-            
-            The CI/CD pipeline has been **automatically blocked** to prevent uncontrolled changes to this release.
-            
             ### Required Actions
-            - [ ] **Review the urgency** of this commit with the release manager
-            - [ ] **Get approval** from stakeholders for post-cutoff changes
-            - [ ] **Verify impact** on release timeline and stability
-            - [ ] **Update cutoff date** in `.release_config.yml` if needed (emergency only)
-            - [ ] **Close this issue** once resolved
-            
-            ### Emergency Override
-            If this is a critical hotfix, update the cutoff date in `.release_config.yml`:
-            ```yaml
-            releases:
-              ${{ github.ref_name }}:
-                cutoff: "NEW_DATE_HERE"  # Format: YYYY-MM-DD
-            ```
+            - [ ] Review urgency with release manager
+            - [ ] Get stakeholder approval
+            - [ ] Verify impact on release timeline
+            - [ ] Update cutoff date if needed
+            - [ ] Close this issue once resolved
             
             ---
             _This issue was automatically created by the Release Cutoff Enforcement workflow._
@@ -133,11 +126,9 @@ jobs:
           body: |
             🚫 **CI/CD BLOCKED** - This commit was made after the release cutoff date (**${{ steps.cutoff.outputs.cutoff }}**).
             
-            **Commit Date:** `$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})`
+            **Commit Date:** `${{ github.event.head_commit.timestamp }}`
             
             A [blocking issue has been created](https://github.com/${{ github.repository }}/issues) for review.
-            
-            Please contact the release manager before proceeding.
 
       - name: Block workflow if past cutoff
         if: steps.check.outputs.block_workflow == 'true'

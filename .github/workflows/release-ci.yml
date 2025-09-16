@@ -56,23 +56,22 @@ jobs:
           if [ "$CUTOFF" == "9999-99-99" ]; then
             echo "notify=false" >> $GITHUB_OUTPUT
             echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
+            echo "block_workflow=false" >> $GITHUB_OUTPUT
             echo "No cutoff date configured - proceeding with CI/CD"
-            exit 0
-          fi
-          
-          if [[ "$COMMIT_DATE" > "$CUTOFF" ]]; then
+          elif [[ "$COMMIT_DATE" > "$CUTOFF" ]]; then
             echo "notify=true" >> $GITHUB_OUTPUT
             echo "proceed_with_cicd=false" >> $GITHUB_OUTPUT
+            echo "block_workflow=true" >> $GITHUB_OUTPUT
             echo "CI/CD blocked: commit made after cutoff $CUTOFF (commit date: $COMMIT_DATE)."
-            exit 1
           else
             echo "notify=false" >> $GITHUB_OUTPUT
             echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
+            echo "block_workflow=false" >> $GITHUB_OUTPUT
             echo "CI/CD allowed: commit made before cutoff $CUTOFF (commit date: $COMMIT_DATE)."
           fi
 
       - name: Create blocking issue when CI/CD is blocked
-        if: failure() && steps.check.outputs.notify == 'true'
+        if: steps.check.outputs.notify == 'true'
         uses: dacbd/create-issue-action@main
         with:
           token: ${{ github.token }}
@@ -120,7 +119,7 @@ jobs:
             urgent
 
       - name: Add comment to triggering commit
-        if: failure() && steps.check.outputs.notify == 'true'
+        if: steps.check.outputs.notify == 'true'
         uses: peter-evans/commit-comment@v3
         with:
           token: ${{ github.token }}
@@ -134,6 +133,12 @@ jobs:
             
             Please contact the release manager before proceeding.
 
+      - name: Block workflow if past cutoff
+        if: steps.check.outputs.block_workflow == 'true'
+        run: |
+          echo "🚫 Workflow blocked - commit made after cutoff date"
+          exit 1
+
       - name: Run CI/CD steps
         if: steps.check.outputs.proceed_with_cicd == 'true'
-        run: echo "Running CI/CD for release branch - commit made before cutoff date."
+        run: echo "✅ Running CI/CD for release branch - commit made before cutoff date."

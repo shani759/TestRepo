@@ -8,6 +8,11 @@ on:
 jobs:
   release-cutoff-check:
     runs-on: ubuntu-latest
+    outputs:
+      proceed_with_cicd: ${{ steps.check.outputs.proceed_with_cicd }}
+      cutoff: ${{ steps.cutoff.outputs.cutoff }}
+      notify: ${{ steps.check.outputs.notify }}
+      block_workflow: ${{ steps.check.outputs.block_workflow }}
 
     steps:
       - name: Checkout code
@@ -90,24 +95,13 @@ jobs:
           title: "🚫 CI/CD Blocked: Release Branch Past Cutoff (${{ github.ref_name }})"
           body: |
             ## 🚫 CI/CD Blocked - Release Branch Past Cutoff
-            
             **⚠️ AUTOMATIC BLOCK TRIGGERED**
-            
-            ### Details
             - **Branch:** `${{ github.ref_name }}`
             - **Cutoff Date:** `${{ steps.cutoff.outputs.cutoff }}`
             - **Commit Date:** `${{ github.event.head_commit.timestamp }}`
             - **Commit SHA:** `${{ github.sha }}`
             - **Author:** `@${{ github.actor }}`
             - **Triggered by:** [Workflow Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            
-            ### Required Actions
-            - [ ] Review urgency with release manager
-            - [ ] Get stakeholder approval
-            - [ ] Verify impact on release timeline
-            - [ ] Update cutoff date if needed
-            - [ ] Close this issue once resolved
-            
             ---
             _This issue was automatically created by the Release Cutoff Enforcement workflow._
           assignees: |
@@ -125,9 +119,7 @@ jobs:
           sha: ${{ github.sha }}
           body: |
             🚫 **CI/CD BLOCKED** - This commit was made after the release cutoff date (**${{ steps.cutoff.outputs.cutoff }}**).
-            
             **Commit Date:** `${{ github.event.head_commit.timestamp }}`
-            
             A [blocking issue has been created](https://github.com/${{ github.repository }}/issues) for review.
 
       - name: Block workflow if past cutoff
@@ -136,6 +128,13 @@ jobs:
           echo "🚫 Workflow blocked - commit made after cutoff date"
           exit 1
 
+  run-ci-cd:
+    needs: release-cutoff-check
+    if: needs.release-cutoff-check.outputs.proceed_with_cicd == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Run CI/CD steps
-        if: steps.check.outputs.proceed_with_cicd == 'true'
         run: echo "✅ Running CI/CD for release branch - commit made before cutoff date."

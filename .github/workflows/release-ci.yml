@@ -40,19 +40,19 @@ jobs:
         id: cutoff
         run: |
           output=$(python cutoff_script.py)
-          echo "$output" >> $GITHUB_OUTPUT
+          cutoff_date=$(echo "$output" | grep 'cutoff=' | cut -d '=' -f2)
+          echo "cutoff=$cutoff_date" >> $GITHUB_OUTPUT
         env:
           BRANCH_NAME: ${{ github.ref_name }}
 
       - name: Get commit date and check cutoff
         id: check
         run: |
-          # Get the commit date in YYYY-MM-DD format
           COMMIT_DATE=$(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})
           CUTOFF="${{ steps.cutoff.outputs.cutoff }}"
           echo "Commit date: $COMMIT_DATE"
           echo "Cutoff date: $CUTOFF"
-          
+
           if [ "$CUTOFF" == "9999-99-99" ]; then
             echo "notify=false" >> $GITHUB_OUTPUT
             echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
@@ -69,6 +69,11 @@ jobs:
             echo "block_workflow=false" >> $GITHUB_OUTPUT
             echo "CI/CD allowed: commit made before cutoff $CUTOFF (commit date: $COMMIT_DATE)."
           fi
+
+      - name: Debug cutoff and commit date
+        run: |
+          echo "Parsed cutoff date: ${{ steps.cutoff.outputs.cutoff }}"
+          echo "Commit date: $(git show -s --format=%cd --date=format:%Y-%m-%d ${{ github.sha }})"
 
       - name: Create blocking issue when CI/CD is blocked
         if: steps.check.outputs.notify == 'true'

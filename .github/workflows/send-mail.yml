@@ -11,7 +11,8 @@ on:
 
 jobs:
   send-email:
-    runs-on: ubuntu-latest
+    # Runs on a self-hosted runner within your corporate network with access to mail.spglobal.com
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,21 +20,11 @@ jobs:
       - name: Send mail
         uses: dawidd6/action-send-mail@v6
         with:
-          # Required mail server address
           server_address: mail.spglobal.com
-          # Server port
           server_port: 25
-          # TLS security (false for port 25)
           secure: false
-          # No authentication needed (using defaultCredentials)
-          # username and password are omitted since defaultCredentials="true"
-          # Required mail subject:
           subject: Github Actions job result
-          # Recipients' addresses from workflow input:
           to: ${{ github.event.inputs.recipient_email }}
-          # Required sender full name and address:
           from: no-reply@snl.com
-          # Optional plain body:
-          body: Build job of ${{github.repository}} completed successfully!
-          # Optional priority: 'high', 'normal' (default) or 'low'
+          body: Build job of ${{ github.repository }} completed successfully!
           priority: normal

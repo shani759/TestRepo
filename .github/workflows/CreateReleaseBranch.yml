@@ -3,6 +3,15 @@ name: Create Release Branch with CODEOWNERS
 on:
   workflow_dispatch:
     inputs:
+      repo_url:
+        description: 'Repository URL (e.g., https://github.com/owner/repo)'
+        required: true
+        type: string
+      base_branch:
+        description: 'Base branch name (e.g., main, master, develop)'
+        required: true
+        type: string
+        default: 'main'
       version:
         description: 'Release version (e.g., 25.12.00)'
         required: true
@@ -14,25 +23,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Extract version and set branch names
+      - name: Extract inputs and set variables
         run: |
+          REPO_URL="${{ github.event.inputs.repo_url }}"
+          BASE_BRANCH="${{ github.event.inputs.base_branch }}"
           VERSION="${{ github.event.inputs.version }}"
+          
+          # Extract repo name from URL for naming conventions
+          REPO_NAME=$(echo $REPO_URL | sed 's|.*/||' | sed 's|\.git$||')
+          
+          # Set branch names
           TEMP_BRANCH="ReleaseTemp-$VERSION"
           RELEASE_BRANCH="release/$VERSION"
           
+          # Set git remote URL with token
+          GIT_REMOTE_URL=$(echo $REPO_URL | sed "s|https://|https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@|")
+          
+          # Export to environment
+          echo "REPO_URL=$REPO_URL" >> $GITHUB_ENV
+          echo "BASE_BRANCH=$BASE_BRANCH" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
           echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
           echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
+          echo "GIT_REMOTE_URL=$GIT_REMOTE_URL" >> $GITHUB_ENV
           
-          echo "--- Branch Names ---"
+          echo "--- Configuration ---"
+          echo "Repository URL: $REPO_URL"
+          echo "Base Branch: $BASE_BRANCH"
           echo "Version: $VERSION"
+          echo "Repository Name: $REPO_NAME"
           echo "Temp Branch: $TEMP_BRANCH"
           echo "Release Branch: $RELEASE_BRANCH"
+          echo "-------------------"
 
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: main
+          repository: ${{ github.event.inputs.repo_url }}
+          ref: ${{ github.event.inputs.base_branch }}
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Create temporary patch branch
         run: |
@@ -41,15 +71,15 @@ jobs:
       - name: Create Release CODEOWNERS File
         run: |
           mkdir -p .github
-          echo "* @mazdaqshahzad" > .github/CODEOWNERS
+          echo "* @${{ github.actor }}" > .github/CODEOWNERS
       
-      - name: <strong>[DEBUG] Verify CODEOWNERS file content</strong>
+      - name: [DEBUG] Verify CODEOWNERS file content
         run: |
           echo "--- Verifying .github/CODEOWNERS ---"
           cat .github/CODEOWNERS
           echo "------------------------------------"
 
-      - name: <strong>[DEBUG] Check git status before commit</strong>
+      - name: [DEBUG] Check git status before commit
         run: |
           echo "--- Checking git status ---"
           git status
@@ -59,9 +89,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/shani759/TestRepo.git
+          git remote set-url origin $GIT_REMOTE_URL
           git add .github/CODEOWNERS
-          git commit -m "Update CODEOWNERS for release branch $VERSION"
+          git commit -m "Update CODEOWNERS for release branch $VERSION from $BASE_BRANCH"
           git push origin $TEMP_BRANCH
 
       - name: Create release branch from temp
@@ -74,3 +104,13 @@ jobs:
           echo "--- Deleting temporary branch: $TEMP_BRANCH ---"
           git push origin --delete $TEMP_BRANCH
           echo "Temporary branch $TEMP_BRANCH deleted successfully"
+
+      - name: Summary
+        run: |
+          echo "--- Release Branch Creation Summary ---"
+          echo "✅ Repository: $REPO_URL"
+          echo "✅ Base Branch: $BASE_BRANCH"
+          echo "✅ Release Version: $VERSION"
+          echo "✅ Release Branch: $RELEASE_BRANCH"
+          echo "✅ CODEOWNERS updated for: @${{ github.actor }}"
+          echo "-------------------------------------"

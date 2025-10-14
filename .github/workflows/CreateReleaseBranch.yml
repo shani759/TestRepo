@@ -29,6 +29,9 @@ jobs:
           BASE_BRANCH="${{ github.event.inputs.base_branch }}"
           VERSION="${{ github.event.inputs.version }}"
           
+          # Extract owner/repo from URL (remove https://github.com/ and .git)
+          REPO_PATH=$(echo $REPO_URL | sed 's|https://github.com/||' | sed 's|\.git$||')
+          
           # Extract repo name from URL for naming conventions
           REPO_NAME=$(echo $REPO_URL | sed 's|.*/||' | sed 's|\.git$||')
           
@@ -41,6 +44,7 @@ jobs:
           
           # Export to environment
           echo "REPO_URL=$REPO_URL" >> $GITHUB_ENV
+          echo "REPO_PATH=$REPO_PATH" >> $GITHUB_ENV
           echo "BASE_BRANCH=$BASE_BRANCH" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
@@ -50,6 +54,7 @@ jobs:
           
           echo "--- Configuration ---"
           echo "Repository URL: $REPO_URL"
+          echo "Repository Path: $REPO_PATH"
           echo "Base Branch: $BASE_BRANCH"
           echo "Version: $VERSION"
           echo "Repository Name: $REPO_NAME"
@@ -60,7 +65,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.event.inputs.repo_url }}
+          repository: ${{ env.REPO_PATH }}
           ref: ${{ github.event.inputs.base_branch }}
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 

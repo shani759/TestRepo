@@ -173,30 +173,6 @@ jobs:
             echo "CI/CD allowed: commit made before cutoff $CUTOFF (commit date: $COMMIT_DATE)."
           fi
 
-      - name: Create blocking issue when CI/CD is blocked
-        if: steps.check.outputs.notify == 'true'
-        uses: dacbd/create-issue-action@main
-        with:
-          token: ${{ github.token }}
-          title: "🚫 CI/CD Blocked: Release Branch Past Cutoff (${{ github.ref_name }})"
-          body: |
-            ## 🚫 CI/CD Blocked - Release Branch Past Cutoff
-            **⚠️ AUTOMATIC BLOCK TRIGGERED**
-            - **Branch:** `${{ github.ref_name }}`
-            - **Cutoff Date:** `${{ steps.cutoff.outputs.cutoff }}`
-            - **Commit Date:** `${{ github.event.head_commit.timestamp }}`
-            - **Commit SHA:** `${{ github.sha }}`
-            - **Author:** `@${{ github.actor }}`
-            - **Triggered by:** [Workflow Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            ---
-            _This issue was automatically created by the Release Cutoff Enforcement workflow._
-          assignees: |
-            Zeeshan-Ajmal_spglobal
-          labels: |
-            release-cutoff
-            blocked
-            urgent
-
       - name: Add comment to triggering commit
         if: steps.check.outputs.notify == 'true'
         uses: peter-evans/commit-comment@v3
@@ -206,7 +182,7 @@ jobs:
           body: |
             🚫 **CI/CD BLOCKED** - This commit was made after the release cutoff date (**${{ steps.cutoff.outputs.cutoff }}**).
             **Commit Date:** `${{ github.event.head_commit.timestamp }}`
-            A [blocking issue has been created](https://github.com/${{ github.repository }}/issues) for review.
+            An email notification has been sent for review.
 
       - name: Block workflow if past cutoff
         if: steps.check.outputs.block_workflow == 'true'
@@ -214,7 +190,7 @@ jobs:
           echo "🚫 Workflow blocked - commit made after cutoff date"
           exit 1
 
-  # New job to send email notification when cutoff is triggered
+  # Send email notification when cutoff is triggered
   send-email-notification:
     needs: release-cutoff-check
     if: needs.release-cutoff-check.outputs.notify == 'true'

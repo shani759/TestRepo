@@ -1,30 +1,39 @@
-name: Send Custom Mail
+name: Send Mail Notification
 
 on:
   workflow_dispatch:
     inputs:
       recipient_email:
-        description: 'Recipient email address'
-        default: 'mazdaq.shahzad@spglobal.com'
+        description: 'Email address to send notification to'
         required: true
+        default: 'mazdaq.shahzad@spglobal.com'
+        type: string
 
 jobs:
-  send_mail:
+  send-email:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Send mail
         uses: dawidd6/action-send-mail@v6
         with:
+          # Required mail server address
           server_address: mail.spglobal.com
+          # Server port
           server_port: 25
-          secure: false             # Port 25 is usually not TLS (set true if required)
-          username: ''              # No username, using defaultCredentials (anonymous)
-          password: ''              # No password
+          # TLS security (false for port 25)
+          secure: false
+          # No authentication needed (using defaultCredentials)
+          # username and password are omitted since defaultCredentials="true"
+          # Required mail subject:
           subject: Github Actions job result
+          # Recipients' addresses from workflow input:
           to: ${{ github.event.inputs.recipient_email }}
+          # Required sender full name and address:
           from: no-reply@snl.com
-          body: Build job of ${{ github.repository }} completed successfully!
-          # Remove the HTML body or update if you want (optional)
-          # html_body: file://README.html
-          ignore_cert: true
-          # Remove unnecessary options for simplicity
+          # Optional plain body:
+          body: Build job of ${{github.repository}} completed successfully!
+          # Optional priority: 'high', 'normal' (default) or 'low'
+          priority: normal

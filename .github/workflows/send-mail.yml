@@ -24,6 +24,6 @@ jobs:
           from: "mazdaq.shahzad6@gmail.com"
           username: "mazdaq.shahzad6@gmail.com"
           password: "vdtp bbzy gtep pwzt"
-          subject: 'Test Email from GitHub Actions'
-          body: 'This is a test email generated from GitHub Actions.'
+          subject: 'Changes made in branch after cutt of date'
+          body: 'someone committed changes  after release cut of date. catch them'
           to: ${{ github.event.inputs.primary_email }},${{ github.event.inputs.secondary_email }}

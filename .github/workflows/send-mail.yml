@@ -1,22 +1,90 @@
-name: Send Email Test
+name: Send Email Notification
 
 on:
   workflow_dispatch:
     inputs:
-      primary_email:
-        description: 'Primary email address'
+      recipients:
+        description: 'Email recipients (comma-separated, leave empty to use file)'
+        required: false
+        default: ''
+      subject:
+        description: 'Email subject'
         required: true
-        default: 'mazdaq.shahzad@spglobal.com'
-      secondary_email:
-        description: 'Secondary email address'
+        default: 'Changes made in branch after cutoff date'
+      body:
+        description: 'Email body'
         required: true
-        default: 'Zeeshan.Ajmal@spglobal.com'
+        default: 'Someone committed changes after release cutoff date. Please review.'
 
 jobs:
   send-email:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Test Email
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Python and dependencies
+        run: pip install pyyaml
+
+      - name: Get recipient list
+        id: recipients
+        run: |
+          cat << 'EOF' > get_recipients.py
+          import os
+          import yaml
+          import sys
+
+          # Get manual recipients input
+          manual_recipients = os.environ.get('MANUAL_RECIPIENTS', '').strip()
+          
+          recipients = []
+          
+          # If manual recipients provided, use them
+          if manual_recipients:
+              recipients = [email.strip() for email in manual_recipients.split(',') if email.strip()]
+              print(f"Using manual recipients: {recipients}")
+          else:
+              # Read from file
+              config_file = 'release-contact-persons.yml'
+              if os.path.exists(config_file):
+                  try:
+                      with open(config_file, 'r') as f:
+                          config = yaml.safe_load(f)
+                      
+                      if 'emails' in config and isinstance(config['emails'], list):
+                          recipients = config['emails']
+                          print(f"Using file recipients: {recipients}")
+                      else:
+                          print("ERROR: 'emails' key not found or not a list in file")
+                          sys.exit(1)
+                          
+                  except Exception as e:
+                      print(f"ERROR reading file: {e}")
+                      sys.exit(1)
+              else:
+                  print(f"ERROR: File '{config_file}' not found")
+                  sys.exit(1)
+          
+          if not recipients:
+              print("ERROR: No recipients found")
+              sys.exit(1)
+          
+          # Join recipients with comma for email action
+          recipient_list = ','.join(recipients)
+          print(f"Final recipient list: {recipient_list}")
+          print(f"recipients={recipient_list}")
+          EOF
+
+          echo "=== GETTING RECIPIENTS ==="
+          output=$(python get_recipients.py)
+          echo "$output"
+          echo "=== EXTRACTING RECIPIENTS ==="
+          recipient_list=$(echo "$output" | grep 'recipients=' | cut -d '=' -f2-)
+          echo "recipients=$recipient_list" >> $GITHUB_OUTPUT
+        env:
+          MANUAL_RECIPIENTS: ${{ github.event.inputs.recipients }}
+
+      - name: Send Email
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -24,6 +92,12 @@ jobs:
           from: "mazdaq.shahzad6@gmail.com"
           username: "mazdaq.shahzad6@gmail.com"
           password: "vdtp bbzy gtep pwzt"
-          subject: 'Changes made in branch after cutt of date'
-          body: 'someone committed changes  after release cut of date. catch them'
-          to: ${{ github.event.inputs.primary_email }},${{ github.event.inputs.secondary_email }}
+          subject: ${{ github.event.inputs.subject }}
+          body: ${{ github.event.inputs.body }}
+          to: ${{ steps.recipients.outputs.recipients }}
+
+      - name: Email notification summary
+        run: |
+          echo "📧 Email sent successfully!"
+          echo "Recipients: ${{ steps.recipients.outputs.recipients }}"
+          echo "Subject: ${{ github.event.inputs.subject }}"

@@ -13,13 +13,21 @@ on:
 jobs:
   update-codeowners-on-release-branch:
     runs-on: ubuntu-latest
-    if: ${{ github.event.ref_type == 'branch' && startsWith(github.event.ref, 'Release/Create-') }}
+    if: ${{ (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'Release/Create-')) || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Extract version and set branch names
         run: |
-          TRIGGER_BRANCH="${{ github.event.ref }}"
-          VERSION=$(echo "$TRIGGER_BRANCH" | sed 's/Release\/Create-//')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # For manual trigger, use a default or prompt for these values
+            TRIGGER_BRANCH="manual-trigger"
+            VERSION="manual"
+          else
+            # For create event
+            TRIGGER_BRANCH="${{ github.event.ref }}"
+            VERSION=$(echo "$TRIGGER_BRANCH" | sed 's/Release\/Create-//')
+          fi
+          
           TEMP_BRANCH="ReleaseTemp-$VERSION"
           RELEASE_BRANCH="release/$VERSION"
           BASE_BRANCH="${{ github.event.inputs.base_branch || 'main' }}"
@@ -40,7 +48,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.BASE_BRANCH }}
+          ref: ${{ github.event.inputs.base_branch || 'main' }}
 
       - name: Create temporary patch branch
         run: |
@@ -86,6 +94,10 @@ jobs:
       - name: Delete trigger branch
         run: |
           echo "--- Deleting trigger branch: $TRIGGER_BRANCH ---"
-          git push origin --delete $TRIGGER_BRANCH
-          echo "Trigger branch $TRIGGER_BRANCH deleted successfully"
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            git push origin --delete $TRIGGER_BRANCH
+            echo "Trigger branch $TRIGGER_BRANCH deleted successfully"
+          else
+            echo "Skipping trigger branch deletion for manual workflow"
+          fi
         continue-on-error: true

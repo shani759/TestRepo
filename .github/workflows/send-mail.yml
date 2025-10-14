@@ -1,0 +1,30 @@
+name: Send Custom Mail
+
+on:
+  workflow_dispatch:
+    inputs:
+      recipient_email:
+        description: 'Recipient email address'
+        default: 'mazdaq.shahzad@spglobal.com'
+        required: true
+
+jobs:
+  send_mail:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send mail
+        uses: dawidd6/action-send-mail@v6
+        with:
+          server_address: mail.spglobal.com
+          server_port: 25
+          secure: false             # Port 25 is usually not TLS (set true if required)
+          username: ''              # No username, using defaultCredentials (anonymous)
+          password: ''              # No password
+          subject: Github Actions job result
+          to: ${{ github.event.inputs.recipient_email }}
+          from: no-reply@snl.com
+          body: Build job of ${{ github.repository }} completed successfully!
+          # Remove the HTML body or update if you want (optional)
+          # html_body: file://README.html
+          ignore_cert: true
+          # Remove unnecessary options for simplicity

@@ -163,14 +163,14 @@ jobs:
 
           if [ "$COMMIT_TS" -gt "$CUTOFF_TS" ]; then
             echo "notify=true" >> $GITHUB_OUTPUT
-            echo "proceed_with_cicd=false" >> $GITHUB_OUTPUT
-            echo "block_workflow=true" >> $GITHUB_OUTPUT
-            echo "CI/CD blocked: commit made after cutoff $CUTOFF (commit date: $COMMIT_DATE)."
+            echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
+            echo "block_workflow=false" >> $GITHUB_OUTPUT
+            echo "⚠️ WARNING: Commit made after cutoff $CUTOFF (commit date: $COMMIT_DATE) - Email notification will be sent."
           else
             echo "notify=false" >> $GITHUB_OUTPUT
             echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
             echo "block_workflow=false" >> $GITHUB_OUTPUT
-            echo "CI/CD allowed: commit made before cutoff $CUTOFF (commit date: $COMMIT_DATE)."
+            echo "✅ Commit made before cutoff $CUTOFF (commit date: $COMMIT_DATE) - Proceeding normally."
           fi
 
       - name: Add comment to triggering commit
@@ -180,23 +180,24 @@ jobs:
           token: ${{ github.token }}
           sha: ${{ github.sha }}
           body: |
-            🚫 **CI/CD BLOCKED** - This commit was made after the release cutoff date (**${{ steps.cutoff.outputs.cutoff }}**).
-            **Commit Date:** `${{ github.event.head_commit.timestamp }}`
-            An email notification has been sent for review.
+            ⚠️ **RELEASE CUTOFF NOTIFICATION** - This commit was made after the release cutoff date (**${{ steps.cutoff.outputs.cutoff }}**).
+            
+            **Details:**
+            - **Commit Date:** `${{ github.event.head_commit.timestamp }}`
+            - **Branch:** `${{ github.ref_name }}`
+            - **Author:** `@${{ github.actor }}`
+            
+            📧 An email notification has been sent to the release team for review.
+            
+            _Note: The workflow will continue to run, but please be aware this commit is past the official cutoff date._
 
-      - name: Block workflow if past cutoff
-        if: steps.check.outputs.block_workflow == 'true'
-        run: |
-          echo "🚫 Workflow blocked - commit made after cutoff date"
-          exit 1
-
-  # Send email notification when cutoff is triggered
+  # Enhanced email notification when cutoff is triggered
   send-email-notification:
     needs: release-cutoff-check
     if: needs.release-cutoff-check.outputs.notify == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Email Workflow
+      - name: Trigger Enhanced Email Workflow
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: send-mail.yml
@@ -209,11 +210,17 @@ jobs:
 
   run-ci-cd:
     needs: release-cutoff-check
-    if: needs.release-cutoff-check.outputs.proceed_with_cicd == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run CI/CD steps
-        run: echo "✅ Running CI/CD for release branch - commit made before cutoff date."
+        run: |
+          if [[ "${{ needs.release-cutoff-check.outputs.notify }}" == "true" ]]; then
+            echo "⚠️  Running CI/CD for release branch - WARNING: commit made after cutoff date!"
+            echo "📧 Email notification has been sent to release team."
+          else
+            echo "✅ Running CI/CD for release branch - commit made before cutoff date."
+          fi
+          echo "🚀 Proceeding with normal CI/CD pipeline..."

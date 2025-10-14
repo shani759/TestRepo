@@ -1,0 +1,20 @@
+name: Create Release Branch with CODEOWNERS
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo_url:
+        description: 'Repository URL (e.g., https://github.com/owner/repo)'
+        required: true
+        type: string
+      base_branch:
+        description: 'Base branch name (e.g., main, master, develop)'
+        required: true
+        type: string
+        default: 'main'
+      version:
+        description: 'Release version (e.g., 25.12.00)'
+        required: true
+        type: string
+        default: '25.12.00'
+

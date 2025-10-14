@@ -45,7 +45,7 @@ jobs:
               print(f"Using manual recipients: {recipients}")
           else:
               # Read from file
-              config_file = '../../release-contact-persons.yml'
+              config_file = 'release-contact-persons.yml'
               if os.path.exists(config_file):
                   try:
                       with open(config_file, 'r') as f:

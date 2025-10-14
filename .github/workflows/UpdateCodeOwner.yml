@@ -2,6 +2,13 @@ name: Update CODEOWNERS for Release Branch
 
 on:
   create
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: 'Base branch to checkout (default: main)'
+        required: false
+        default: 'main'
+        type: string
 
 jobs:
   update-codeowners-on-release-branch:
@@ -15,22 +22,25 @@ jobs:
           VERSION=$(echo "$TRIGGER_BRANCH" | sed 's/Release\/Create-//')
           TEMP_BRANCH="ReleaseTemp-$VERSION"
           RELEASE_BRANCH="release/$VERSION"
+          BASE_BRANCH="${{ github.event.inputs.base_branch || 'main' }}"
           
           echo "TRIGGER_BRANCH=$TRIGGER_BRANCH" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
           echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
+          echo "BASE_BRANCH=$BASE_BRANCH" >> $GITHUB_ENV
           
           echo "--- Branch Names ---"
           echo "Trigger Branch: $TRIGGER_BRANCH"
           echo "Version: $VERSION"
           echo "Temp Branch: $TEMP_BRANCH"
           echo "Release Branch: $RELEASE_BRANCH"
+          echo "Base Branch: $BASE_BRANCH"
 
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ env.BASE_BRANCH }}
 
       - name: Create temporary patch branch
         run: |
@@ -41,13 +51,13 @@ jobs:
           mkdir -p .github
           echo "* @spglobal-innersource/release-shepherds" > .github/CODEOWNERS
       
-      - name: <strong>[DEBUG] Verify CODEOWNERS file content</strong>
+      - name: [DEBUG] Verify CODEOWNERS file content
         run: |
           echo "--- Verifying .github/CODEOWNERS ---"
           cat .github/CODEOWNERS
           echo "------------------------------------"
 
-      - name: <strong>[DEBUG] Check git status before commit</strong>
+      - name: [DEBUG] Check git status before commit
         run: |
           echo "--- Checking git status ---"
           git status

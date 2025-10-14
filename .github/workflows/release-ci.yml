@@ -204,8 +204,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           inputs: |
             {
-              "primary_email": "mazdaq.shahzad@spglobal.com",
-              "secondary_email": "Zeeshan.Ajmal@spglobal.com"
+              "recipients": "",
+              "subject": "🚨 Release Cutoff Violation - Commit made after cutoff date",
+              "body": "⚠️ **RELEASE CUTOFF NOTIFICATION**\n\nA commit was made after the release cutoff date and requires your attention.\n\n**Details:**\n- **Branch:** ${{ github.ref_name }}\n- **Cutoff Date:** ${{ needs.release-cutoff-check.outputs.cutoff }}\n- **Commit Date:** ${{ github.event.head_commit.timestamp }}\n- **Author:** @${{ github.actor }}\n- **Commit SHA:** ${{ github.sha }}\n- **Commit Message:** ${{ github.event.head_commit.message }}\n- **Repository:** ${{ github.repository }}\n\n**Action Required:**\nPlease review this commit and determine if any action is needed for the release process.\n\n**Commit URL:** ${{ github.event.head_commit.url }}\n\nThis is an automated notification from the release cutoff enforcement system."
             }
 
   run-ci-cd:

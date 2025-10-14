@@ -72,10 +72,26 @@ jobs:
         run: |
           git checkout -b $TEMP_BRANCH
 
-      - name: Create Release CODEOWNERS File
+      - name: Copy Release CODEOWNERS File
         run: |
           mkdir -p .github
-          echo "* @${{ github.actor }}" > .github/CODEOWNERS
+          
+          # Check if CODEOWNERS.release exists
+          if [ -f .github/CODEOWNERS.release ]; then
+            echo "--- Found .github/CODEOWNERS.release file ---"
+            echo "Content of .github/CODEOWNERS.release:"
+            cat .github/CODEOWNERS.release
+            echo "------------------------------------"
+            
+            # Copy content from CODEOWNERS.release to CODEOWNERS
+            cp .github/CODEOWNERS.release .github/CODEOWNERS
+            echo "✅ Successfully copied content from .github/CODEOWNERS.release to .github/CODEOWNERS"
+          else
+            echo "❌ ERROR: .github/CODEOWNERS.release file not found in the repository"
+            echo "Available files in .github directory:"
+            ls -la .github/ || echo "No .github directory found"
+            exit 1
+          fi
       
       - name: Verify CODEOWNERS file content
         run: |
@@ -95,7 +111,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin $GIT_REMOTE_URL
           git add .github/CODEOWNERS
-          git commit -m "Update CODEOWNERS for release branch $VERSION from $BASE_BRANCH"
+          git commit -m "Update CODEOWNERS for release branch $VERSION from $BASE_BRANCH (copied from CODEOWNERS.release)"
           git push origin $TEMP_BRANCH
 
       - name: Create release branch from temp
@@ -116,5 +132,5 @@ jobs:
           echo "✅ Base Branch: $BASE_BRANCH"
           echo "✅ Release Version: $VERSION"
           echo "✅ Release Branch: $RELEASE_BRANCH"
-          echo "✅ CODEOWNERS updated for: @${{ github.actor }}"
+          echo "✅ CODEOWNERS copied from CODEOWNERS.release file"
           echo "-------------------------------------"

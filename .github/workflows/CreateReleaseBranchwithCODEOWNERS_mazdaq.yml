@@ -1,5 +1,6 @@
 name: Create Release Branch with CODEOWNERS
 
+# This workflow ONLY runs on manual trigger - no automatic triggers
 on:
   workflow_dispatch:
     inputs:

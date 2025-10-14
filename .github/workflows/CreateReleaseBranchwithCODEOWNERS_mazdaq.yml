@@ -1,6 +1,5 @@
 name: Create Release Branch with CODEOWNERS
 
-# This workflow ONLY runs on manual trigger - no automatic triggers
 on:
   workflow_dispatch:
     inputs:
@@ -22,7 +21,6 @@ on:
 jobs:
   update-codeowners-on-release-branch:
     runs-on: ubuntu-latest
-
     steps:
       - name: Extract inputs and set variables
         run: |
@@ -79,13 +77,13 @@ jobs:
           mkdir -p .github
           echo "* @${{ github.actor }}" > .github/CODEOWNERS
       
-      - name: [DEBUG] Verify CODEOWNERS file content
+      - name: Verify CODEOWNERS file content
         run: |
           echo "--- Verifying .github/CODEOWNERS ---"
           cat .github/CODEOWNERS
           echo "------------------------------------"
 
-      - name: [DEBUG] Check git status before commit
+      - name: Check git status before commit
         run: |
           echo "--- Checking git status ---"
           git status

@@ -214,6 +214,23 @@ jobs:
           echo "🚫 Workflow blocked - commit made after cutoff date"
           exit 1
 
+  # New job to send email notification when cutoff is triggered
+  send-email-notification:
+    needs: release-cutoff-check
+    if: needs.release-cutoff-check.outputs.notify == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Email Workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: send-mail.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: |
+            {
+              "primary_email": "mazdaq.shahzad@spglobal.com",
+              "secondary_email": "Zeeshan.Ajmal@spglobal.com"
+            }
+
   run-ci-cd:
     needs: release-cutoff-check
     if: needs.release-cutoff-check.outputs.proceed_with_cicd == 'true'

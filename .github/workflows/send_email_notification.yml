@@ -87,11 +87,11 @@ jobs:
       - name: Send Email
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: ${{ secrets.SMTP_SERVER }}
-          server_port: ${{ secrets.SMTP_PORT }}
-          from: ${{ secrets.SMTP_FROM_EMAIL }}
-          username: ${{ secrets.SMTP_USER }}
-          password: ${{ secrets.SMTP_PASSWORD }}
+          server_address: smtp.gmail.com
+          server_port: 465
+          from: "mazdaq.shahzad6@gmail.com"
+          username: "mazdaq.shahzad6@gmail.com"
+          password: "vdtp bbzy gtep pwzt"
           subject: ${{ github.event.inputs.subject }}
           body: ${{ github.event.inputs.body }}
           to: ${{ steps.recipients.outputs.recipients }}

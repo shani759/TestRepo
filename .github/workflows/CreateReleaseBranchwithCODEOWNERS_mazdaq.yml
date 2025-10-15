@@ -74,14 +74,21 @@ jobs:
 
       - name: Create Release CODEOWNERS File
         run: |
-          mkdir -p .github
-          echo "* @${{ github.actor }}" > .github/CODEOWNERS
+          if [ -f "CODEOWNERS.release" ]; then
+            echo "--- Found CODEOWNERS.release file ---"
+            echo "Copying content from CODEOWNERS.release to CODEOWNERS"
+            cp CODEOWNERS.release CODEOWNERS
+          else
+            echo "--- CODEOWNERS.release not found ---"
+            echo "Creating default CODEOWNERS file"
+            echo "* @${{ github.actor }}" > CODEOWNERS
+          fi
       
       - name: Verify CODEOWNERS file content
         run: |
-          echo "--- Verifying .github/CODEOWNERS ---"
-          cat .github/CODEOWNERS
-          echo "------------------------------------"
+          echo "--- Verifying CODEOWNERS file content ---"
+          cat CODEOWNERS
+          echo "----------------------------------------"
 
       - name: Check git status before commit
         run: |

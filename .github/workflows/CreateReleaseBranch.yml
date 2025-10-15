@@ -78,13 +78,13 @@ jobs:
           mkdir -p .github
           echo "* @${{ github.actor }}" > .github/CODEOWNERS
       
-      - name: [DEBUG] Verify CODEOWNERS file content
+      - name: "[DEBUG] Verify CODEOWNERS file content"
         run: |
           echo "--- Verifying .github/CODEOWNERS ---"
           cat .github/CODEOWNERS
           echo "------------------------------------"
 
-      - name: [DEBUG] Check git status before commit
+      - name: "[DEBUG] Check git status before commit"
         run: |
           echo "--- Checking git status ---"
           git status

@@ -24,6 +24,7 @@ jobs:
     steps:
       - name: Extract inputs and set variables
         run: |
+          set -euo pipefail  # ← ADD THIS LINE
           REPO_URL="${{ github.event.inputs.repo_url }}"
           BASE_BRANCH="${{ github.event.inputs.base_branch }}"
           VERSION="${{ github.event.inputs.version }}"
@@ -70,6 +71,7 @@ jobs:
 
       - name: Create temporary patch branch and update CODEOWNERS
         run: |
+          set -euo pipefail  # ← ADD THIS LINE
           echo "--- Creating temp branch: $TEMP_BRANCH ---"
           git checkout -b $TEMP_BRANCH
           
@@ -95,12 +97,14 @@ jobs:
 
       - name: Check git status before commit
         run: |
+          set -euo pipefail  # ← ADD THIS LINE
           echo "--- Checking git status ---"
           git status
           echo "---------------------------"
 
       - name: Commit and push temp branch with CODEOWNERS update
         run: |
+          set -euo pipefail  # ← ADD THIS LINE
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin $GIT_REMOTE_URL
@@ -126,13 +130,15 @@ jobs:
           git push origin HEAD:$RELEASE_BRANCH
 
       - name: Delete temporary branch
-        run: |
+        run: |          
+          set -euo pipefail  # ← ADD THIS LINE
           echo "--- Deleting temporary branch: $TEMP_BRANCH ---"
           git push origin --delete $TEMP_BRANCH
           echo "Temporary branch $TEMP_BRANCH deleted successfully"
 
       - name: Summary
         run: |
+          set -euo pipefail  # ← ADD THIS LINE
           echo "--- Release Branch Creation Summary ---"
           echo "✅ Repository: $REPO_URL"
           echo "✅ Base Branch: $BASE_BRANCH"

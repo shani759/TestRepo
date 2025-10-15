@@ -68,27 +68,30 @@ jobs:
           ref: ${{ github.event.inputs.base_branch }}
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
-      - name: Create temporary patch branch
+      - name: Create temporary patch branch and update CODEOWNERS
         run: |
+          echo "--- Creating temp branch: $TEMP_BRANCH ---"
           git checkout -b $TEMP_BRANCH
-
-      - name: Create Release CODEOWNERS File
-        run: |
+          
+          echo "--- Checking for CODEOWNERS.release file ---"
           if [ -f "CODEOWNERS.release" ]; then
-            echo "--- Found CODEOWNERS.release file ---"
-            echo "Copying content from CODEOWNERS.release to CODEOWNERS"
+            echo "✅ Found CODEOWNERS.release file"
+            echo "--- Content of CODEOWNERS.release ---"
+            cat CODEOWNERS.release
+            echo "------------------------------------"
+            
+            echo "--- Copying CODEOWNERS.release to CODEOWNERS ---"
             cp CODEOWNERS.release CODEOWNERS
+            
+            echo "--- Verifying new CODEOWNERS content ---"
+            cat CODEOWNERS
+            echo "---------------------------------------"
           else
-            echo "--- CODEOWNERS.release not found ---"
-            echo "Creating default CODEOWNERS file"
-            echo "* @${{ github.actor }}" > CODEOWNERS
+            echo "❌ CODEOWNERS.release file not found in repository root"
+            echo "Available files in root:"
+            ls -la
+            exit 1
           fi
-      
-      - name: Verify CODEOWNERS file content
-        run: |
-          echo "--- Verifying CODEOWNERS file content ---"
-          cat CODEOWNERS
-          echo "----------------------------------------"
 
       - name: Check git status before commit
         run: |
@@ -96,17 +99,29 @@ jobs:
           git status
           echo "---------------------------"
 
-      - name: Commit and push temp branch
+      - name: Commit and push temp branch with CODEOWNERS update
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin $GIT_REMOTE_URL
-          git add .github/CODEOWNERS
-          git commit -m "Update CODEOWNERS for release branch $VERSION from $BASE_BRANCH"
-          git push origin $TEMP_BRANCH
+          
+          # Add the updated CODEOWNERS file
+          git add CODEOWNERS
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            echo "--- Committing CODEOWNERS changes ---"
+            git commit -m "Update CODEOWNERS for release branch $VERSION from $BASE_BRANCH (copied from CODEOWNERS.release)"
+            
+            echo "--- Pushing temp branch with changes ---"
+            git push origin $TEMP_BRANCH
+          fi
 
       - name: Create release branch from temp
         run: |
+          echo "--- Creating release branch: $RELEASE_BRANCH ---"
           git checkout -b $RELEASE_BRANCH
           git push origin HEAD:$RELEASE_BRANCH
 
@@ -123,5 +138,5 @@ jobs:
           echo "✅ Base Branch: $BASE_BRANCH"
           echo "✅ Release Version: $VERSION"
           echo "✅ Release Branch: $RELEASE_BRANCH"
-          echo "✅ CODEOWNERS updated for: @${{ github.actor }}"
+          echo "✅ CODEOWNERS updated from CODEOWNERS.release"
           echo "-------------------------------------"

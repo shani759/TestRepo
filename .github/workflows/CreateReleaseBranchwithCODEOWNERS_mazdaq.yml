@@ -1,148 +1,230 @@
-name: Create Release Branch with CODEOWNERS
+name: Release Cutoff Enforcement and Notification
+
+env:
+  DEFAULT_CUTOFF: "9999-99-99"
 
 on:
-  workflow_dispatch:
-    inputs:
-      repo_url:
-        description: 'Repository URL (e.g., https://github.com/owner/repo)'
-        required: true
-        type: string
-      base_branch:
-        description: 'Base branch name (e.g., main, master, develop)'
-        required: true
-        type: string
-        default: 'main'
-      version:
-        description: 'Release version (e.g., 25.12.00)'
-        required: true
-        type: string
-        default: '25.12.00'
+  push:
+    branches:
+      - 'release/*'
 
 jobs:
-  update-codeowners-on-release-branch:
+  release-cutoff-check:
     runs-on: ubuntu-latest
-    steps:
-      - name: Extract inputs and set variables
-        run: |
-          set -euo pipefail  # ← ADD THIS LINE
-          REPO_URL="${{ github.event.inputs.repo_url }}"
-          BASE_BRANCH="${{ github.event.inputs.base_branch }}"
-          VERSION="${{ github.event.inputs.version }}"
-          
-          # Extract owner/repo from URL (remove https://github.com/ and .git)
-          REPO_PATH=$(echo $REPO_URL | sed 's|https://github.com/||' | sed 's|\.git$||')
-          
-          # Extract repo name from URL for naming conventions
-          REPO_NAME=$(echo $REPO_URL | sed 's|.*/||' | sed 's|\.git$||')
-          
-          # Set branch names
-          TEMP_BRANCH="ReleaseTemp-$VERSION"
-          RELEASE_BRANCH="release/$VERSION"
-          
-          # Set git remote URL with token
-          GIT_REMOTE_URL=$(echo $REPO_URL | sed "s|https://|https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@|")
-          
-          # Export to environment
-          echo "REPO_URL=$REPO_URL" >> $GITHUB_ENV
-          echo "REPO_PATH=$REPO_PATH" >> $GITHUB_ENV
-          echo "BASE_BRANCH=$BASE_BRANCH" >> $GITHUB_ENV
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
-          echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
-          echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
-          echo "GIT_REMOTE_URL=$GIT_REMOTE_URL" >> $GITHUB_ENV
-          
-          echo "--- Configuration ---"
-          echo "Repository URL: $REPO_URL"
-          echo "Repository Path: $REPO_PATH"
-          echo "Base Branch: $BASE_BRANCH"
-          echo "Version: $VERSION"
-          echo "Repository Name: $REPO_NAME"
-          echo "Temp Branch: $TEMP_BRANCH"
-          echo "Release Branch: $RELEASE_BRANCH"
-          echo "-------------------"
+    outputs:
+      proceed_with_cicd: ${{ steps.check.outputs.proceed_with_cicd }}
+      cutoff: ${{ steps.cutoff.outputs.cutoff }}
+      notify: ${{ steps.check.outputs.notify }}
+      block_workflow: ${{ steps.check.outputs.block_workflow }}
 
+    steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_PATH }}
-          ref: ${{ github.event.inputs.base_branch }}
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
-      - name: Create temporary patch branch and update CODEOWNERS
+      - name: Install Python and dependencies
+        run: pip install pyyaml
+
+      - name: Write cutoff script with enhanced debugging
         run: |
-          set -euo pipefail  # ← ADD THIS LINE
-          echo "--- Creating temp branch: $TEMP_BRANCH ---"
-          git checkout -b $TEMP_BRANCH
+          cat << 'EOF' > cutoff_script.py
+          import os
+          import yaml
+          import sys
+
+          # Get the full branch reference
+          raw_branch = os.environ.get('BRANCH_NAME', '')
+          print(f"=== DEBUG INFO ===")
+          print(f"Raw branch from BRANCH_NAME env: '{raw_branch}'")
+          print(f"Raw branch type: {type(raw_branch)}")
+          print(f"Raw branch length: {len(raw_branch)}")
           
-          echo "--- Checking for CODEOWNERS.release file ---"
-          if [ -f "CODEOWNERS.release" ]; then
-            echo "✅ Found CODEOWNERS.release file"
-            echo "--- Content of CODEOWNERS.release ---"
-            cat CODEOWNERS.release
-            echo "------------------------------------"
-            
-            echo "--- Copying CODEOWNERS.release to CODEOWNERS ---"
-            cp CODEOWNERS.release CODEOWNERS
-            
-            echo "--- Verifying new CODEOWNERS content ---"
-            cat CODEOWNERS
-            echo "---------------------------------------"
-          else
-            echo "❌ CODEOWNERS.release file not found in repository root"
-            echo "Available files in root:"
-            ls -la
+          # Extract branch name from refs/heads/release/xxx format
+          if raw_branch.startswith('refs/heads/'):
+              branch = raw_branch.replace('refs/heads/', '')
+          else:
+              branch = raw_branch
+          
+          print(f"Extracted branch after cleanup: '{branch}'")
+
+          # Check if config file exists
+          config_file = 'release_cutoff_config.yml'
+          if not os.path.exists(config_file):
+              print(f"ERROR: Config file '{config_file}' does not exist!")
+              print("Files in current directory:")
+              try:
+                  files = os.listdir('.')
+                  for f in sorted(files):
+                      if f.startswith('.') or 'config' in f.lower() or f.endswith('.yml'):
+                          print(f"  - {f}")
+              except:
+                  pass
+              print('cutoff=${{ env.DEFAULT_CUTOFF }}')
+              sys.exit(0)
+
+          try:
+              with open(config_file, 'r') as f:
+                  content = f.read()
+                  print(f"Config file content:")
+                  print("--- START CONFIG ---")
+                  print(content)
+                  print("--- END CONFIG ---")
+                  
+              # Reset file pointer and load YAML
+              with open(config_file, 'r') as f:
+                  config = yaml.safe_load(f)
+              
+              print(f"YAML loaded successfully: {type(config)}")
+              
+              if 'releases' not in config:
+                  print("ERROR: 'releases' key not found in config!")
+                  print(f"Available keys: {list(config.keys()) if config else 'None'}")
+                  print('cutoff=${{ env.DEFAULT_CUTOFF }}')
+                  sys.exit(0)
+                  
+              releases = config['releases']
+              print(f"Available release branches in config:")
+              for key in releases.keys():
+                  print(f"  - '{key}' (length: {len(key)})")
+                  # Show each character for debugging
+                  chars = [f"'{c}'" if c.isprintable() else f"\\x{ord(c):02x}" for c in key]
+                  print(f"    chars: {chars}")
+              
+              # Show target branch characters too
+              print(f"Target branch: '{branch}' (length: {len(branch)})")
+              chars = [f"'{c}'" if c.isprintable() else f"\\x{ord(c):02x}" for c in branch]
+              print(f"  chars: {chars}")
+              
+              # Try exact match first
+              print(f"Looking for exact match: '{branch}'")
+              if branch in releases:
+                  cutoff = releases[branch].get('cutoff', None)
+                  print(f"Found exact match! Cutoff: {cutoff}")
+              else:
+                  print(f"No exact match found for '{branch}'")
+                  cutoff = None
+                  
+                  # Try with different formats
+                  if branch.startswith('release/'):
+                      version_part = branch.replace('release/', '')
+                      print(f"Version part: '{version_part}'")
+                      
+                      # Try with 20 prefix
+                      if not version_part.startswith('20') and '.' in version_part:
+                          full_year_branch = f"release/20{version_part}"
+                          print(f"Trying full year format: '{full_year_branch}'")
+                          if full_year_branch in releases:
+                              cutoff = releases[full_year_branch].get('cutoff', None)
+                              print(f"Found full year match! Cutoff: {cutoff}")
+              
+              if cutoff:
+                  print(f'cutoff={cutoff}')
+              else:
+                  print('cutoff=${{ env.DEFAULT_CUTOFF }}')
+                  
+          except Exception as e:
+              print(f"ERROR: Exception occurred: {e}")
+              import traceback
+              traceback.print_exc()
+              print('cutoff=${{ env.DEFAULT_CUTOFF }}')
+          EOF
+
+      - name: Read cutoff from metadata file
+        id: cutoff
+        run: |
+          echo "=== RUNNING CUTOFF SCRIPT ==="
+          output=$(python cutoff_script.py)
+          echo "=== FULL SCRIPT OUTPUT ==="
+          echo "$output"
+          echo "=== EXTRACTING CUTOFF ==="
+          cutoff_date=$(echo "$output" | grep 'cutoff=' | cut -d '=' -f2)
+          echo "Extracted cutoff date: '$cutoff_date'"
+          echo "cutoff=$cutoff_date" >> $GITHUB_OUTPUT
+        env:
+          BRANCH_NAME: ${{ github.ref }}
+
+      - name: Validate cutoff presence
+        run: |
+          if [[ "${{ steps.cutoff.outputs.cutoff }}" == "${{ env.DEFAULT_CUTOFF }}" ]]; then
+            echo "❌ Cutoff not found for branch ${{ github.ref }}"
+            echo "Available branches in config should be checked above"
             exit 1
           fi
 
-      - name: Check git status before commit
+      - name: Get push timestamp and check cutoff
+        id: check
         run: |
-          set -euo pipefail  # ← ADD THIS LINE
-          echo "--- Checking git status ---"
-          git status
-          echo "---------------------------"
+          COMMIT_DATE="${{ github.event.head_commit.timestamp }}"
+          CUTOFF="${{ steps.cutoff.outputs.cutoff }}"
 
-      - name: Commit and push temp branch with CODEOWNERS update
-        run: |
-          set -euo pipefail  # ← ADD THIS LINE
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin $GIT_REMOTE_URL
-          
-          # Add the updated CODEOWNERS file
-          git add CODEOWNERS
-          
-          # Check if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
+          COMMIT_TS=$(date -d "$COMMIT_DATE" +%s)
+          CUTOFF_TS=$(date -d "$CUTOFF" +%s)
+
+          echo "Commit date: $COMMIT_DATE"
+          echo "Cutoff date: $CUTOFF"
+          echo "Commit timestamp: $COMMIT_TS"
+          echo "Cutoff timestamp: $CUTOFF_TS"
+
+          if [ "$COMMIT_TS" -gt "$CUTOFF_TS" ]; then
+            echo "notify=true" >> $GITHUB_OUTPUT
+            echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
+            echo "block_workflow=false" >> $GITHUB_OUTPUT
+            echo "⚠️ WARNING: Commit made after cutoff $CUTOFF (commit date: $COMMIT_DATE) - Email notification will be sent."
           else
-            echo "--- Committing CODEOWNERS changes ---"
-            git commit -m "Update CODEOWNERS for release branch $VERSION from $BASE_BRANCH (copied from CODEOWNERS.release)"
-            
-            echo "--- Pushing temp branch with changes ---"
-            git push origin $TEMP_BRANCH
+            echo "notify=false" >> $GITHUB_OUTPUT
+            echo "proceed_with_cicd=true" >> $GITHUB_OUTPUT
+            echo "block_workflow=false" >> $GITHUB_OUTPUT
+            echo "✅ Commit made before cutoff $CUTOFF (commit date: $COMMIT_DATE) - Proceeding normally."
           fi
 
-      - name: Create release branch from temp
-        run: |
-          echo "--- Creating release branch: $RELEASE_BRANCH ---"
-          git checkout -b $RELEASE_BRANCH
-          git push origin HEAD:$RELEASE_BRANCH
+      - name: Add comment to triggering commit
+        if: steps.check.outputs.notify == 'true'
+        uses: peter-evans/commit-comment@v3
+        with:
+          token: ${{ github.token }}
+          sha: ${{ github.sha }}
+          body: |
+            ⚠️ **RELEASE CUTOFF NOTIFICATION** - This commit was made after the release cutoff date (**${{ steps.cutoff.outputs.cutoff }}**).
+            
+            **Details:**
+            - **Commit Date:** `${{ github.event.head_commit.timestamp }}`
+            - **Branch:** `${{ github.ref_name }}`
+            - **Author:** `@${{ github.actor }}`
+            
+            📧 An email notification has been sent to the release team for review.
+            
+            _Note: The workflow will continue to run, but please be aware this commit is past the official cutoff date._
 
-      - name: Delete temporary branch
-        run: |          
-          set -euo pipefail  # ← ADD THIS LINE
-          echo "--- Deleting temporary branch: $TEMP_BRANCH ---"
-          git push origin --delete $TEMP_BRANCH
-          echo "Temporary branch $TEMP_BRANCH deleted successfully"
+  # Enhanced email notification when cutoff is triggered
+  send-email-notification:
+    needs: release-cutoff-check
+    if: needs.release-cutoff-check.outputs.notify == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Enhanced Email Workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: send_email_notification.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: |
+            {
+              "recipients": "",
+              "subject": "🚨 Release Cutoff Violation - Commit made after cutoff date",
+              "body": "⚠️ **RELEASE CUTOFF NOTIFICATION**\n\nA commit was made after the release cutoff date and requires your attention.\n\n**Details:**\n- **Branch:** ${{ github.ref_name }}\n- **Cutoff Date:** ${{ needs.release-cutoff-check.outputs.cutoff }}\n- **Commit Date:** ${{ github.event.head_commit.timestamp }}\n- **Author:** @${{ github.actor }}\n- **Commit SHA:** ${{ github.sha }}\n- **Commit Message:** ${{ github.event.head_commit.message }}\n- **Repository:** ${{ github.repository }}\n\n**Action Required:**\nPlease review this commit and determine if any action is needed for the release process.\n\n**Commit URL:** ${{ github.event.head_commit.url }}\n\nThis is an automated notification from the release cutoff enforcement system."
+            }
 
-      - name: Summary
+  run-ci-cd:
+    needs: release-cutoff-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run CI/CD steps
         run: |
-          set -euo pipefail  # ← ADD THIS LINE
-          echo "--- Release Branch Creation Summary ---"
-          echo "✅ Repository: $REPO_URL"
-          echo "✅ Base Branch: $BASE_BRANCH"
-          echo "✅ Release Version: $VERSION"
-          echo "✅ Release Branch: $RELEASE_BRANCH"
-          echo "✅ CODEOWNERS updated from CODEOWNERS.release"
-          echo "-------------------------------------"
+          if [[ "${{ needs.release-cutoff-check.outputs.notify }}" == "true" ]]; then
+            echo "⚠️  Running CI/CD for release branch - WARNING: commit made after cutoff date!"
+            echo "📧 Email notification has been sent to release team."
+          else
+            echo "✅ Running CI/CD for release branch - commit made before cutoff date."
+          fi
+          echo "🚀 Proceeding with normal CI/CD pipeline..."
